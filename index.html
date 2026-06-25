@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZamGrow — Pyrolysis Reactor Explorer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a1410;--surface:#152118;--border:#1e3d2a;
+  --ember:#52b788;--ash:#b8d4c8;--text:#e8f4ee;--text-dim:#8fc4ae;
+  --green:#74c69d;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding:0}
+
+/* NAV */
+nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.1rem 2.5rem;border-bottom:1px solid var(--border);
+  background:var(--bg);position:sticky;top:0;z-index:100;
+}
+.nav-brand{font-family:var(--mono);font-size:1.35rem;color:var(--text);letter-spacing:0.05em}
+.nav-brand span{color:var(--ember)}
+.nav-tag{font-family:var(--mono);font-size:1.18rem;color:var(--text-dim)}
+
+/* WRAPPER — full bleed */
+.wrap{padding:2rem 2.5rem;width:100%}
+
+/* HEADER */
+.header{margin-bottom:2rem}
+.eyebrow{font-family:var(--mono);font-size:1.18rem;letter-spacing:0.2em;color:var(--ember);text-transform:uppercase;margin-bottom:0.6rem}
+h1{font-size:clamp(1.6rem,2.5vw,2.4rem);font-weight:300;color:var(--text);letter-spacing:-0.02em;margin-bottom:0.4rem}
+h1 span{color:var(--ember);font-weight:600}
+.subtitle{font-size:1.55rem;color:var(--ash);line-height:1.6}
+
+/* HEAT CARDS */
+.heat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+.heat-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1.1rem 1.4rem}
+.heat-card h3{font-family:var(--mono);font-size:1.1rem;letter-spacing:0.1em;color:var(--ember);text-transform:uppercase;margin-bottom:0.4rem}
+.heat-card p{font-size:1.4rem;color:var(--ash);line-height:1.6}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:4px;margin-bottom:1.25rem}
+.card-pad{padding:1.25rem 1.75rem}
+.card-label{font-family:var(--mono);font-size:1.1rem;letter-spacing:0.12em;color:var(--text-dim);text-transform:uppercase;margin-bottom:1rem}
+
+/* FLOWSHEET SVG */
+.flow-wrap{width:100%;overflow-x:auto;padding:1.5rem 2rem}
+svg.flow{width:100%;min-width:800px;display:block}
+
+/* SLIDER */
+.slider-top{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.25rem}
+.slider-top label{font-family:var(--mono);font-size:1.18rem;color:var(--text-dim);letter-spacing:0.1em;text-transform:uppercase}
+.temp-big{font-family:var(--mono);font-size:3rem;font-weight:600;color:var(--ember);line-height:1}
+.temp-big small{font-size:1.1rem;font-weight:400;color:var(--ash);margin-left:5px}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--border);border-radius:2px;outline:none;cursor:pointer;margin-bottom:0.5rem}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--ember);border:2px solid var(--bg);cursor:pointer;box-shadow:0 0 10px rgba(232,93,38,0.5)}
+.range-ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:1.15rem;color:var(--text-dim)}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:1.25rem}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1.25rem 1.5rem;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--border)}
+.kpi.main::before{background:var(--ember)}
+.kpi-lbl{font-family:var(--mono);font-size:1.1rem;letter-spacing:0.1em;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.5rem}
+.kpi-val{font-family:var(--mono);font-size:1.6rem;font-weight:600;color:var(--text);line-height:1}
+.kpi-val.neg{color:#f4a261}.kpi-val.pos{color:var(--green)}
+.kpi-sub{font-size:1.25rem;color:var(--text-dim);margin-top:0.3rem}
+
+/* CHART */
+.chart-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.chart-hdr-lbl{font-family:var(--mono);font-size:1.1rem;letter-spacing:0.1em;color:var(--text-dim);text-transform:uppercase}
+.chart-legend{display:flex;gap:1rem;font-family:var(--mono);font-size:1.1rem;color:var(--text-dim);align-items:center}
+.leg-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px}
+canvas{width:100%!important;display:block}
+
+/* INTERP */
+.interp{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--ember);border-radius:4px;padding:1rem 1.5rem;font-size:1.5rem;color:var(--ash);line-height:1.7;margin-bottom:1.25rem}
+.interp strong{color:var(--text)}
+
+footer{border-top:1px solid var(--border);padding:1.25rem 2.5rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;font-family:var(--mono);font-size:1.1rem;color:var(--text-dim)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">Zam<span>Grow</span></div>
+  <div class="nav-tag">Pyrolysis Reactor Explorer · Internal Simulation Tool</div>
+</nav>
+
+<div class="wrap">
+
+  <div class="header">
+    <div class="eyebrow">DWSIM 9.0.5 · RC-000 · Bagasse Pyrolysis</div>
+    <h1>Reactor <span>Temperature</span> Explorer</h1>
+    <p class="subtitle">Real DWSIM simulation data. Drag the slider to see how heat duty responds to outlet temperature.</p>
+  </div>
+
+  <!-- HEAT DUTY EXPLAINER -->
+  <div class="heat-row">
+    <div class="heat-card">
+      <h3>What is heat duty?</h3>
+      <p>The rate of energy that must be supplied to the reactor to maintain it at the target outlet temperature. Higher temperature = more energy input required to sustain pyrolysis.</p>
+    </div>
+    <div class="heat-card">
+      <h3>Why does it increase with temperature?</h3>
+      <p>At higher outlet temperatures, more energy must be supplied to heat the products and sustain the pyrolysis reactions. The reactor demands progressively more heat input as the target temperature rises.</p>
+    </div>
+    <div class="heat-card">
+      <h3>ZamGrow design point</h3>
+      <p>At 600–700°C, the reactor releases ~1,700–1,850 kW per kg/s. This heat is recovered via syngas recycling to keep the kiln self-sufficient.</p>
+    </div>
+  </div>
+
+  <!-- FLOWSHEET -->
+  <div class="card">
+    <div class="card-pad" style="padding-bottom:0">
+      <div class="card-label">Process flowsheet — live energy values</div>
+      <p style="font-size:0.95rem;color:#f4a261;margin-bottom:1rem;line-height:1.6">⚠ Work in progress — this flowsheet simulates only the first part of the ZamGrow system: the conversion reactor (RC-000) where bagasse pyrolysis occurs, and the component splitter (CS-1) that separates biochar from syngas. The subsequent components — combustion, heat recovery, and product conditioning — are yet to be added to the model.</p>
+    </div>
+    <div class="flow-wrap">
+      <svg class="flow" viewBox="0 0 1400 340" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0,9 3.5,0 7" fill="#74c69d"/>
+          </marker>
+          <marker id="arr-e" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0,9 3.5,0 7" fill="#52b788"/>
+          </marker>
+        </defs>
+
+        <!-- BAGASSE FEED LINE -->
+        <line x1="30" y1="155" x2="180" y2="155" stroke="#74c69d" stroke-width="2.5" marker-end="url(#arr)"/>
+        <text x="105" y="140" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="16" fill="#e8f4ee">Bagasse</text>
+        <text x="105" y="178" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" fill="#8fc4ae">1 kg/s · 298 K</text>
+
+        <!-- RC-000 BOX -->
+        <rect x="182" y="95" width="160" height="120" fill="#152118" stroke="#1e3d2a" stroke-width="2" rx="4"/>
+        <line x1="182" y1="95" x2="342" y2="215" stroke="#1e3d2a" stroke-width="1.5"/>
+        <line x1="342" y1="95" x2="182" y2="215" stroke="#1e3d2a" stroke-width="1.5"/>
+        <text x="262" y="158" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="26" font-weight="600" fill="#74c69d">C</text>
+        <text x="262" y="250" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="17" font-weight="500" fill="#e8f4ee">RC-000</text>
+        <text x="262" y="272" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" fill="#8fc4ae">Conversion Reactor</text>
+
+        <!-- GAS TOP OUTLET -->
+        <line x1="262" y1="95" x2="262" y2="38" stroke="#74c69d" stroke-width="2.5" marker-end="url(#arr)"/>
+        <text x="340" y="30" font-family="'IBM Plex Mono',monospace" font-size="15" fill="#e8f4ee">Gas</text>
+        <text x="340" y="48" font-family="'IBM Plex Mono',monospace" font-size="12" fill="#8fc4ae">(minor vapor)</text>
+
+        <!-- HEAT STREAM RC-000 -->
+        <line x1="230" y1="215" x2="230" y2="295" stroke="#52b788" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#arr-e)"/>
+        <text x="230" y="315" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="14" fill="#52b788" font-weight="600">Heat</text>
+        <text x="230" y="333" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="15" fill="#52b788" font-weight="600" id="svg-heat-val">— kW</text>
+
+        <!-- LIQUID/SOLID STREAM -->
+        <line x1="342" y1="155" x2="650" y2="155" stroke="#74c69d" stroke-width="2.5" marker-end="url(#arr)"/>
+        <text x="496" y="140" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="15" fill="#e8f4ee">Liquid / Solid</text>
+        <text x="496" y="175" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" fill="#8fc4ae">Biochar + condensables</text>
+
+        <!-- CS-1 BOX -->
+        <rect x="652" y="95" width="150" height="120" fill="#152118" stroke="#1e3d2a" stroke-width="2" rx="4"/>
+        <line x1="652" y1="95" x2="802" y2="215" stroke="#1e3d2a" stroke-width="1.5"/>
+        <line x1="802" y1="95" x2="652" y2="215" stroke="#1e3d2a" stroke-width="1.5"/>
+        <text x="727" y="158" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="20" font-weight="600" fill="#74c69d">CS</text>
+        <text x="727" y="250" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="17" font-weight="500" fill="#e8f4ee">CS-1</text>
+        <text x="727" y="272" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" fill="#8fc4ae">Component Splitter</text>
+
+        <!-- BIOCHAR TOP OUTLET -->
+        <line x1="727" y1="95" x2="727" y2="38" stroke="#74c69d" stroke-width="2.5" marker-end="url(#arr)"/>
+        <rect x="790" y="16" width="130" height="44" fill="#152118" stroke="#1e3d2a" rx="3"/>
+        <text x="855" y="34" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="15" fill="#e8f4ee">Biochar</text>
+        <text x="855" y="52" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" fill="#3ddc84">0.059 kg/s (solid)</text>
+
+        <!-- HEAT STREAM CS-1 -->
+        <line x1="695" y1="215" x2="695" y2="295" stroke="#52b788" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#arr-e)"/>
+        <text x="695" y="315" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="14" fill="#52b788" font-weight="600">Heat</text>
+        <text x="695" y="333" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="15" fill="#52b788" font-weight="600">573 kW</text>
+
+        <!-- SYNGAS RIGHT -->
+        <line x1="802" y1="155" x2="1060" y2="155" stroke="#74c69d" stroke-width="2.5" marker-end="url(#arr)"/>
+        <text x="931" y="140" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="15" fill="#e8f4ee">Syngas</text>
+        <text x="931" y="175" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" fill="#8fc4ae">CO + H₂ + Phenol</text>
+        <rect x="1062" y="125" width="160" height="60" fill="#152118" stroke="#1e3d2a" rx="3"/>
+        <text x="1142" y="150" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="15" fill="#e8f4ee">Syngas outlet</text>
+        <text x="1142" y="170" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" fill="#3ddc84">0.941 kg/s (vapor)</text>
+
+        <!-- LEGEND -->
+        <line x1="1100" y1="270" x2="1130" y2="270" stroke="#74c69d" stroke-width="2" marker-end="url(#arr)"/>
+        <text x="1138" y="274" font-family="'IBM Plex Mono',monospace" font-size="12" fill="#8fc4ae">Material stream</text>
+        <line x1="1100" y1="295" x2="1130" y2="295" stroke="#52b788" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arr-e)"/>
+        <text x="1138" y="299" font-family="'IBM Plex Mono',monospace" font-size="12" fill="#8fc4ae">Energy stream</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- SLIDER -->
+  <div class="card card-pad">
+    <div class="slider-top">
+      <label style="font-size:1.4rem;color:var(--text)">RC-000 Outlet Temperature — Slider</label>
+      <div class="temp-big" id="tempDisplay">773<small>K</small></div>
+    </div>
+    <input type="range" id="tempSlider" min="600" max="1200" step="10" value="773">
+    <div class="range-ticks">
+      <span>600 K</span><span>700 K</span><span>800 K</span><span>900 K</span>
+      <span>1000 K</span><span>1100 K</span><span>1200 K</span>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi main">
+      <div class="kpi-lbl">Reactor Heat Duty</div>
+      <div class="kpi-val neg" id="kpiHeat">—</div>
+      <div class="kpi-sub" id="kpiHeatSub">required to maintain reactor at this temperature</div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-lbl">Temperature in °C</div>
+      <div class="kpi-val" id="kpiCelsius">—</div>
+      <div class="kpi-sub" id="kpiCelsiusSub">—</div>
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div class="card card-pad">
+    <div class="chart-hdr">
+      <span class="chart-hdr-lbl">Heat duty (kW) vs. outlet temperature — real DWSIM data</span>
+      <div class="chart-legend">
+        <span><span class="leg-dot" style="background:var(--ember)"></span>Heat duty</span>
+
+      </div>
+    </div>
+    <canvas id="chart" height="300"></canvas>
+  </div>
+
+  <div class="interp" id="interpBox">—</div>
+
+</div>
+
+<footer>
+  <span>ZamGrow Fertiliser Ltd · DWSIM 9.0.5 · Raoult's Law · Bagasse C₄H₆O₃</span>
+  <span>Reaction: Bagasse → Biochar + CO + H₂ + Phenol · 100% conversion · 1 kg/s basis</span>
+</footer>
+
+<script>
+const RAW=[{"T":600,"heat":-2307.59},{"T":610,"heat":-2286.17},{"T":620,"heat":-2264.73},{"T":630,"heat":-2243.29},{"T":640,"heat":-2221.83},{"T":650,"heat":-2200.37},{"T":660,"heat":-2178.89},{"T":670,"heat":-2157.41},{"T":680,"heat":-2135.92},{"T":690,"heat":-2114.41},{"T":700,"heat":-2092.88},{"T":710,"heat":-2071.37},{"T":720,"heat":-2049.84},{"T":730,"heat":-2028.31},{"T":740,"heat":-2006.76},{"T":750,"heat":-1985.2},{"T":760,"heat":-1963.63},{"T":770,"heat":-1942.04},{"T":780,"heat":-1920.44},{"T":790,"heat":-1898.82},{"T":800,"heat":-1877.18},{"T":810,"heat":-1855.52},{"T":820,"heat":-1833.85},{"T":830,"heat":-1812.15},{"T":840,"heat":-1790.42},{"T":850,"heat":-1768.66},{"T":860,"heat":-1746.88},{"T":870,"heat":-1725.06},{"T":880,"heat":-1703.21},{"T":890,"heat":-1681.33},{"T":900,"heat":-1659.4},{"T":910,"heat":-1637.43},{"T":920,"heat":-1615.41},{"T":930,"heat":-1593.34},{"T":940,"heat":-1571.22},{"T":950,"heat":-1549.04},{"T":960,"heat":-1526.8},{"T":970,"heat":-1504.49},{"T":980,"heat":-1482.12},{"T":990,"heat":-1459.67},{"T":1000,"heat":-1437.15},{"T":1010,"heat":-1414.54},{"T":1020,"heat":-1391.85},{"T":1030,"heat":-1369.06},{"T":1040,"heat":-1346.18},{"T":1050,"heat":-1323.2},{"T":1060,"heat":-1300.11},{"T":1070,"heat":-1276.9},{"T":1080,"heat":-1253.58},{"T":1090,"heat":-1230.14},{"T":1100,"heat":-1206.57},{"T":1110,"heat":-1182.86},{"T":1120,"heat":-1159.01},{"T":1130,"heat":-1135.01},{"T":1140,"heat":-1110.85},{"T":1150,"heat":-1086.54},{"T":1160,"heat":-1062.06},{"T":1170,"heat":-1037.4},{"T":1180,"heat":-1012.56},{"T":1190,"heat":-987.53},{"T":1200,"heat":-962.31}];
+
+function interp(T){
+  const lo=RAW.filter(d=>d.T<=T).pop();
+  const hi=RAW.find(d=>d.T>=T);
+  if(!lo)return hi.heat;if(!hi)return lo.heat;
+  if(lo.T===hi.T)return lo.heat;
+  return lo.heat+(T-lo.T)/(hi.T-lo.T)*(hi.heat-lo.heat);
+}
+
+function interpText(T,heat){
+  const c=(T-273.15).toFixed(0);
+  const abs=Math.abs(heat).toFixed(0);
+  if(T<773)return`<strong>Low temperature (${c}°C).</strong> ${abs} kW required to hold the reactor at this temperature. At this range, pyrolysis is slow and biochar carbonisation is incomplete.`;
+  if(T<=973)return`<strong>ZamGrow target range (600–700°C) — currently ${c}°C.</strong> ${abs} kW of heat input required. This is our design operating point — producing high-quality biochar and clean syngas.`;
+  if(T<=1073)return`<strong>Above target (${c}°C).</strong> ${abs} kW required. Higher energy input is needed to sustain pyrolysis at this temperature. Biochar quality decreases; syngas yield rises.`;
+  return`<strong>Gasification territory (${c}°C).</strong> ${abs} kW required — significant energy input. At this range, pyrolysis transitions to gasification. Outside ZamGrow's process scope.`;
+}
+
+function drawChart(currentT){
+  const canvas=document.getElementById('chart');
+  const W=canvas.parentElement.clientWidth-56;
+  const H=300;
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const pad={top:28,right:20,bottom:60,left:110};
+  const cW=W-pad.left-pad.right,cH=H-pad.top-pad.bottom;
+  const minT=600,maxT=1200,minH=-2450,maxH=0;
+  const xOf=T=>pad.left+(T-minT)/(maxT-minT)*cW;
+  const yOf=h=>pad.top+(1-(h-minH)/(maxH-minH))*cH;
+  ctx.clearRect(0,0,W,H);
+
+
+
+  [-500,-1000,-1500,-2000].forEach(h=>{
+    const y=yOf(h);
+    ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(pad.left+cW,y);
+    ctx.strokeStyle='#1e3d2a';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#8fc4ae';ctx.font='19px IBM Plex Mono,monospace';
+    ctx.textAlign='right';ctx.fillText(h.toLocaleString(),pad.left-10,y+4);
+  });
+
+  ctx.fillStyle='#8fc4ae';ctx.font='19px IBM Plex Mono,monospace';ctx.textAlign='center';
+  [600,700,800,900,1000,1100,1200].forEach(t=>ctx.fillText(t,xOf(t),pad.top+cH+20));
+
+  ctx.save();ctx.translate(16,pad.top+cH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#8fc4ae';ctx.font='17px IBM Plex Sans,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Heat duty (kW)',0,0);ctx.restore();
+  ctx.fillStyle='#8fc4ae';ctx.font='17px IBM Plex Sans,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Outlet Temperature (K)',pad.left+cW/2,H-5);
+
+  ctx.beginPath();
+  ctx.moveTo(xOf(RAW[0].T),yOf(0));
+  RAW.forEach(d=>ctx.lineTo(xOf(d.T),yOf(d.heat)));
+  ctx.lineTo(xOf(RAW[RAW.length-1].T),yOf(0));
+  ctx.closePath();
+  const gr=ctx.createLinearGradient(0,pad.top,0,pad.top+cH);
+  gr.addColorStop(0,'rgba(82,183,136,0.0)');
+  gr.addColorStop(1,'rgba(82,183,136,0.18)');
+  ctx.fillStyle=gr;ctx.fill();
+
+  ctx.beginPath();
+  RAW.forEach((d,i)=>i===0?ctx.moveTo(xOf(d.T),yOf(d.heat)):ctx.lineTo(xOf(d.T),yOf(d.heat)));
+  ctx.strokeStyle='#52b788';ctx.lineWidth=2.5;ctx.stroke();
+
+  const cx=xOf(currentT);
+  ctx.beginPath();ctx.moveTo(cx,pad.top);ctx.lineTo(cx,pad.top+cH);
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+  ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);
+
+  const ch=interp(currentT);
+  ctx.beginPath();ctx.arc(cx,yOf(ch),7,0,Math.PI*2);
+  ctx.fillStyle='#52b788';ctx.fill();
+  ctx.strokeStyle='#0a1410';ctx.lineWidth=2;ctx.stroke();
+}
+
+function update(){
+  const T=parseInt(slider.value);
+  const heat=interp(T);
+  const celsius=(T-273.15).toFixed(1);
+  document.getElementById('tempDisplay').innerHTML=`${T}<small>K</small>`;
+  document.getElementById('kpiHeat').textContent=`${Math.abs(heat).toFixed(0)} kW`;
+
+  document.getElementById('kpiCelsius').innerHTML=`${celsius}°C`;
+  const inRange=T>=873&&T<=973;
+  document.getElementById('kpiCelsiusSub').textContent=inRange?'✓ ZamGrow target range':T<873?'Below target':'Above target';
+  document.getElementById('interpBox').innerHTML=interpText(T,heat);
+  document.getElementById('svg-heat-val').textContent=`${heat.toFixed(0)} kW`;
+  drawChart(T);
+}
+
+const slider=document.getElementById('tempSlider');
+slider.addEventListener('input',update);
+window.addEventListener('resize',()=>drawChart(parseInt(slider.value)));
+update();
+</script>
+</body>
+</html>
